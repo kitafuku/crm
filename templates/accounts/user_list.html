@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}ユーザー管理 — 顧客管理システム{% endblock %}
+{% block nav_users %}active{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-full">
+
+  <div class="bg-white border-b border-gray-200 px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-3">
+      <h2 class="text-lg font-bold text-gray-900">ユーザー管理</h2>
+      <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200 font-semibold">🔒 管理者専用</span>
+    </div>
+    <a href="{% url 'user_create' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg">＋ ユーザー追加</a>
+  </div>
+
+  <div class="px-4 md:px-6 py-6 max-w-4xl">
+
+    <!-- 統計 -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">総ユーザー数</p>
+        <p class="text-3xl font-bold text-gray-900 mt-1">{{ total }}</p>
+        <p class="text-xs text-gray-400 mt-1">アクティブ {{ active_count }}</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">管理者</p>
+        <p class="text-3xl font-bold text-indigo-600 mt-1">{{ admin_count }}</p>
+        <p class="text-xs text-gray-400 mt-1">全権限あり</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">一般ユーザー</p>
+        <p class="text-3xl font-bold text-cyan-600 mt-1">{{ total|add:"-"|add:admin_count }}</p>
+        <p class="text-xs text-gray-400 mt-1">顧客の閲覧・編集のみ</p>
+      </div>
+    </div>
+
+    <!-- テーブル（PC） -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden hidden md:block">
+      <table class="w-full text-sm border-collapse">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200">ユーザー</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200">権限</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200">担当顧客数</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200">ステータス</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200">最終ログイン</th>
+            <th class="text-left px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wide border-b border-gray-200">操作</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for u in users %}
+          <tr class="hover:bg-gray-50 {% if not u.is_active %}opacity-50{% endif %}">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0
+                  {% if u.role == 'admin' %}bg-indigo-600{% else %}bg-cyan-600{% endif %}">
+                  {{ u.name|slice:":1" }}
+                </div>
+                <div>
+                  <p class="font-semibold text-gray-900 text-sm">{{ u.name }}</p>
+                  <p class="text-xs text-gray-400">{{ u.email }}</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              {% if u.role == 'admin' %}
+              <span class="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-semibold">管理者</span>
+              {% else %}
+              <span class="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full font-semibold">一般</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-600">
+              {% if u.role != 'admin' %}<strong>{{ u.customers.count }}</strong> 件{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-1.5 text-xs">
+                <div class="w-2 h-2 rounded-full {% if u.is_active %}bg-emerald-500{% else %}bg-gray-300{% endif %}"></div>
+                {% if u.is_active %}有効{% else %}無効{% endif %}
+              </div>
+            </td>
+            <td class="px-4 py-3 text-xs text-gray-400">
+              {{ u.last_login|date:"Y/m/d H:i"|default:"—" }}
+            </td>
+            <td class="px-4 py-3">
+              <a href="{% url 'user_edit' u.pk %}" class="text-xs border border-indigo-400 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50 mr-1">編集</a>
+              {% if u.pk != request.user.pk %}
+              <form method="post" action="{% url 'user_delete' u.pk %}" class="inline"
+                onsubmit="return confirm('「{{ u.name }}」を削除しますか？')">
+                {% csrf_token %}
+                <button type="submit" class="text-xs border border-red-300 text-red-500 px-2 py-1 rounded hover:bg-red-50">削除</button>
+              </form>
+              {% else %}
+              <span class="text-xs text-gray-300 px-2 py-1 border border-gray-200 rounded cursor-not-allowed">削除</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- カード（スマートフォン） -->
+    <div class="md:hidden space-y-3">
+      {% for u in users %}
+      <div class="bg-white rounded-xl border border-gray-200 p-4 {% if not u.is_active %}opacity-50{% endif %}">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold
+              {% if u.role == 'admin' %}bg-indigo-600{% else %}bg-cyan-600{% endif %}">
+              {{ u.name|slice:":1" }}
+            </div>
+            <div>
+              <p class="font-semibold text-gray-900 text-sm">{{ u.name }}</p>
+              <p class="text-xs text-gray-400">{{ u.email }}</p>
+            </div>
+          </div>
+          {% if u.role == 'admin' %}
+          <span class="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-semibold">管理者</span>
+          {% else %}
+          <span class="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full font-semibold">一般</span>
+          {% endif %}
+        </div>
+        <div class="flex gap-2 mt-3">
+          <a href="{% url 'user_edit' u.pk %}" class="flex-1 text-center text-xs border border-indigo-400 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-50">編集</a>
+          {% if u.pk != request.user.pk %}
+          <form method="post" action="{% url 'user_delete' u.pk %}" class="flex-1"
+            onsubmit="return confirm('「{{ u.name }}」を削除しますか？')">
+            {% csrf_token %}
+            <button type="submit" class="w-full text-xs border border-red-300 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-50">削除</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

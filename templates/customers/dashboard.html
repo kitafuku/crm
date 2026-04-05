@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}ダッシュボード — 顧客管理システム{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="px-4 md:px-6 py-6">
+  <h2 class="text-xl font-bold text-gray-900 mb-6">ダッシュボード</h2>
+
+  <!-- 統計カード -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">顧客総数</p>
+      <p class="text-3xl font-bold text-gray-900 mt-1">{{ total }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">自分の担当</p>
+      <p class="text-3xl font-bold text-indigo-600 mt-1">{{ my_count }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">法人</p>
+      <p class="text-3xl font-bold text-cyan-600 mt-1">{{ corp_count }}</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">個人 / 自治体</p>
+      <p class="text-3xl font-bold text-emerald-600 mt-1">{{ indiv_count|add:gov_count }}</p>
+    </div>
+  </div>
+
+  <!-- 最近の更新 -->
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="text-sm font-bold text-gray-700">最近の更新</h3>
+      <a href="{% url 'customer_list' %}" class="text-xs text-indigo-600 hover:underline">一覧を見る →</a>
+    </div>
+    <div class="divide-y divide-gray-50">
+      {% for c in recent %}
+      <div class="px-5 py-3 flex items-center justify-between hover:bg-gray-50">
+        <div>
+          <p class="text-sm font-semibold text-gray-900">{{ c.name }}</p>
+          <p class="text-xs text-gray-400">{{ c.customer_id }} ・ {{ c.updated_at|date:"Y/m/d H:i" }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+          {% if c.attribute == 'corporate' %}
+          <span class="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full font-semibold">法人</span>
+          {% elif c.attribute == 'individual' %}
+          <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">個人</span>
+          {% else %}
+          <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">自治体</span>
+          {% endif %}
+          <a href="{% url 'customer_edit' c.pk %}" class="text-xs text-indigo-600 hover:underline">編集</a>
+        </div>
+      </div>
+      {% empty %}
+      <p class="px-5 py-6 text-sm text-gray-400 text-center">顧客データがありません</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

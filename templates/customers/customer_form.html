@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}顧客{{ action }} — 顧客管理システム{% endblock %}
+{% block nav_customers %}active{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-full">
+
+  <!-- トップバー -->
+  <div class="bg-white border-b border-gray-200 px-4 md:px-6 py-3.5 flex items-center gap-3 sticky top-0 z-10">
+    <a href="{% url 'customer_list' %}" class="text-sm text-gray-500 hover:text-gray-700">← 一覧へ戻る</a>
+    <h2 class="text-lg font-bold text-gray-900">顧客{{ action }}</h2>
+  </div>
+
+  <div class="px-4 md:px-6 py-6 max-w-2xl">
+    <form method="post" id="customer-form">
+      {% csrf_token %}
+
+      <!-- エラー表示 -->
+      {% if form.errors %}
+      <div class="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+        入力内容を確認してください。
+        {% for field in form %}{% for error in field.errors %}<p>{{ field.label }}: {{ error }}</p>{% endfor %}{% endfor %}
+        {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- 基本情報 -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+        <div class="px-5 py-3 border-b border-gray-100 bg-gray-50">
+          <h3 class="text-sm font-bold text-gray-700">基本情報</h3>
+        </div>
+        <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+              顧客ID <span class="text-red-500 text-xs">※必須</span>
+            </label>
+            <input type="text" name="customer_id" value="{{ form.customer_id.value|default:'' }}"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white
+              {% if form.customer_id.errors %}border-red-400{% endif %}"
+              placeholder="例: C-0001">
+            <p class="text-xs text-gray-400 mt-1">重複不可</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+              顧客名 <span class="text-red-500 text-xs">※必須</span>
+            </label>
+            <input type="text" name="name" value="{{ form.name.value|default:'' }}"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white
+              {% if form.name.errors %}border-red-400{% endif %}"
+              placeholder="例: 株式会社サンプル商事">
+          </div>
+
+          <!-- 属性 -->
+          <div class="md:col-span-2">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">
+              属性 <span class="text-red-500 text-xs">※必須</span>
+            </label>
+            <div class="flex gap-3">
+              {% for val, label in form.fields.attribute.choices %}
+              <label class="flex-1 cursor-pointer">
+                <input type="radio" name="attribute" value="{{ val }}"
+                  {% if form.attribute.value == val %}checked{% endif %}
+                  class="sr-only" onchange="toggleCorporateNumber()">
+                <div class="attr-option border-2 rounded-xl p-3 text-center transition
+                  {% if form.attribute.value == val %}
+                    {% if val == 'corporate' %}border-cyan-500 bg-cyan-50 text-cyan-700
+                    {% elif val == 'individual' %}border-emerald-500 bg-emerald-50 text-emerald-700
+                    {% else %}border-amber-500 bg-amber-50 text-amber-700{% endif %}
+                  {% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+                  <span class="text-xl block mb-1">
+                    {% if val == 'corporate' %}🏢{% elif val == 'individual' %}👤{% else %}🏛️{% endif %}
+                  </span>
+                  <span class="text-xs font-semibold">{{ label }}</span>
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- 法人番号（法人のみ） -->
+          <div id="corporate-number-field" class="md:col-span-2 {% if form.attribute.value != 'corporate' %}hidden{% endif %}">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">法人番号</label>
+            <input type="text" name="corporate_number" value="{{ form.corporate_number.value|default:'' }}"
+              maxlength="13"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white"
+              placeholder="13桁の法人番号">
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">業種</label>
+            <select name="industry"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white">
+              <option value="">— 選択してください —</option>
+              {% for val, label in form.fields.industry.choices %}
+              {% if val %}
+              <option value="{{ val }}" {% if form.industry.value == val %}selected{% endif %}>{{ label }}</option>
+              {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">担当者</label>
+            <select name="assigned_user"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white">
+              <option value="">— 選択してください —</option>
+              {% for u in form.assigned_user.field.queryset %}
+              <option value="{{ u.pk }}" {% if form.assigned_user.value|stringformat:"s" == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 連絡先情報 -->
+      <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-6">
+        <div class="px-5 py-3 border-b border-gray-100 bg-gray-50">
+          <h3 class="text-sm font-bold text-gray-700">連絡先情報</h3>
+        </div>
+        <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">電話番号</label>
+            <input type="tel" name="phone" value="{{ form.phone.value|default:'' }}"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white"
+              placeholder="03-1234-5678">
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">メールアドレス</label>
+            <input type="email" name="email" value="{{ form.email.value|default:'' }}"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white"
+              placeholder="contact@example.com">
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">住所</label>
+            <input type="text" name="address" value="{{ form.address.value|default:'' }}"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white"
+              placeholder="東京都千代田区...">
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">備考</label>
+            <textarea name="note" rows="3"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:outline-none focus:border-indigo-500 focus:bg-white"
+              placeholder="特記事項など">{{ form.note.value|default:'' }}</textarea>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ボタン -->
+      <div class="flex gap-3 justify-end">
+        <a href="{% url 'customer_list' %}" class="px-5 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 font-semibold">キャンセル</a>
+        <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg">
+          {% if action == '登録' %}登録する{% else %}更新する{% endif %}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleCorporateNumber() {
+  const selected = document.querySelector('input[name="attribute"]:checked');
+  const field = document.getElementById('corporate-number-field');
+  if (selected && selected.value === 'corporate') {
+    field.classList.remove('hidden');
+  } else {
+    field.classList.add('hidden');
+    document.querySelector('input[name="corporate_number"]').value = '';
+  }
+  // ビジュアル更新
+  document.querySelectorAll('.attr-option').forEach(el => {
+    el.className = 'attr-option border-2 rounded-xl p-3 text-center transition border-gray-200 text-gray-500 hover:border-gray-300';
+  });
+  if (selected) {
+    const parent = selected.closest('label').querySelector('.attr-option');
+    const v = selected.value;
+    if (v === 'corporate') parent.className = 'attr-option border-2 rounded-xl p-3 text-center transition border-cyan-500 bg-cyan-50 text-cyan-700';
+    else if (v === 'individual') parent.className = 'attr-option border-2 rounded-xl p-3 text-center transition border-emerald-500 bg-emerald-50 text-emerald-700';
+    else parent.className = 'attr-option border-2 rounded-xl p-3 text-center transition border-amber-500 bg-amber-50 text-amber-700';
+  }
+}
+</script>
+{% endblock %}
